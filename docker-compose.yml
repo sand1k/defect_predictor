@@ -1,0 +1,6 @@
+metrics:
+  build: .
+  command: echo 'ready'
+  volumes:
+    - .:/home/app/defpred
+    - /home/app/defpred/node_modules
