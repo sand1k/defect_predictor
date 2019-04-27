@@ -1,3 +1,8 @@
 const escomplex = require('escomplex');
-const result = escomplex.analyse("index.js");
-console.log(result);
+const fs = require('fs');
+const util = require('util')
+
+var code = fs.readFileSync('index.js', 'utf8');
+
+const result = escomplex.analyse(code);
+console.log(util.inspect(result, {showHidden: false, depth: null}))
