@@ -9,7 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "escomplex": "git+https://github.com/escomplex/escomplex.git",
+    "escomplex": "git+https://github.com/sand1k/escomplex.git#es6-support",
     "fs": "0.0.2"
   }
 }
