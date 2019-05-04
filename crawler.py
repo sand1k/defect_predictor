@@ -4,6 +4,9 @@ import pprint
 from unidiff import PatchSet
 from functools import reduce
 import os
+import zmq
+import sys
+import json
 
 def dump(obj):
   for attr in dir(obj):
@@ -11,6 +14,11 @@ def dump(obj):
 
 def findWholeWord(w):
     return re.compile(r'(^| )({0})( |$)'.format(w), flags=re.IGNORECASE).search
+
+# setup zmq client
+context = zmq.Context()
+socket = context.socket(zmq.REQ)
+socket.connect("tcp://127.0.0.1:5557")
 
 repo = Repo('data/atom')
 words_to_search = ['bug', 'fix', 'refactor']
@@ -54,6 +62,18 @@ for commit in commits[1:]:
       print("Removed lines in old file: " + str(removed_lines))
       print("Added lines in new file: " + str(added_lines))
       print("")
+
+      socket.send(d.a_blob.data_stream.read())
+      json_metrics = socket.recv()
+      metrics = json.loads(json_metrics.decode('utf-8'))
+      print("Metrics for a:" + str(len(json_metrics)) + " bytes received")
+
+
+      socket.send(d.b_blob.data_stream.read())
+      json_metrics = socket.recv()
+      metrics = json.loads(json_metrics.decode('utf-8'))
+      print("Metrics for b:" + str(len(json_metrics)) + " bytes received")
+#      print(json.dumps(metrics), indent = 2, separators = (',', ': ')))
 
     input("Press Enter to continue...")
 

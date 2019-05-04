@@ -1,8 +1,15 @@
 const escomplex = require('escomplex');
-const fs = require('fs');
 const util = require('util')
+const zmq = require('zeromq')
 
-var code = fs.readFileSync('index.js', 'utf8');
+sock = zmq.socket('rep');
+sock.bindSync('tcp://127.0.0.1:5557');
 
-const result = escomplex.analyse(code);
-console.log(util.inspect(result, {showHidden: false, depth: null}))
+sock.on('message', function(js_code) {
+  console.log('Received code:');
+  console.log(js_code);
+  console.log('');
+  sock.send(JSON.stringify(escomplex.analyse(js_code)));
+});
+
+

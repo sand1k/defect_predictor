@@ -10,6 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "escomplex": "git+https://github.com/sand1k/escomplex.git#es6-support",
-    "fs": "0.0.2"
+    "fs": "0.0.2",
+    "zeromq": "^5.1.0"
   }
 }
