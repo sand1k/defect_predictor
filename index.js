@@ -9,7 +9,13 @@ sock.on('message', function(js_code) {
   console.log('Received code:');
   console.log(js_code);
   console.log('');
-  sock.send(JSON.stringify(escomplex.analyse(js_code)));
+  res = {};
+  try {
+    res = escomplex.analyse(js_code);
+  } catch (err) {
+    res.error = err.message;
+  }
+  sock.send(JSON.stringify(res));
 });
 
 
