@@ -38,7 +38,7 @@ def find_function_at_line(funcs_line, line_no):
   i = find_le(funcs_line, line_no)
   return i
 
-def get_function_metrics_as_np_array(f_metrics):
+def get_function_metrics_as_np_array(f_metrics, defects_val):
   'Convert function metrics from escomplex format to numpy array'
   arr = [f_metrics["cyclomatic"],
          f_metrics["halstead"]["operands"]["distinct"],
@@ -55,19 +55,20 @@ def get_function_metrics_as_np_array(f_metrics):
          f_metrics["params"],
          f_metrics["sloc"]["logical"],
          f_metrics["sloc"]["physical"],
-         f_metrics["cyclomaticDensity"]]
+         f_metrics["cyclomaticDensity"],
+         defects_val]
   return arr
 
-def check_and_add_functions_metrics(good_metrics, bad_metrics, f_metrics_a, f_metrics_b):
+def check_and_add_functions_metrics(metrics, f_metrics_a, f_metrics_b):
   name_a = f_metrics_a["name"]
-  np_metr_a = get_function_metrics_as_np_array(f_metrics_a)
+  np_metr_a = get_function_metrics_as_np_array(f_metrics_a, 1.0)
 
   name_b = f_metrics_b["name"]
-  np_metr_b = get_function_metrics_as_np_array(f_metrics_b)
+  np_metr_b = get_function_metrics_as_np_array(f_metrics_b, 0.0)
 
   if name_a == name_b and not np.array_equal(np_metr_a, np_metr_b):
-    bad_metrics.append(np_metr_a)
-    good_metrics.append(np_metr_b)
+    metrics.append(np_metr_a)
+    metrics.append(np_metr_b)
 
     print("function a (name: %s, line: %s, sloc: %s" % (name_a,
                                                         f_metrics_a["line"],
@@ -78,26 +79,22 @@ def check_and_add_functions_metrics(good_metrics, bad_metrics, f_metrics_a, f_me
                                                         f_metrics_b["sloc"]["physical"]))
     print(np_metr_b)
 
-  return good_metrics, bad_metrics
+  return metrics
 
-def save_data(good_metrics, bad_metrics):
-  print("Dump %s metrics." % (len(bad_metrics)))
-  np_good = np.asarray(good_metrics)
-  np_bad = np.asarray(bad_metrics)
-  with open('good.pkl', 'wb') as f:
-    pickle.dump(np_good, f)
-  with open('bad.pkl', 'wb') as f:
-    pickle.dump(np_bad, f)
+def save_data(metrics):
+  print("Dump %s metrics." % (len(metrics)))
+  np_metrics = np.asarray(metrics)
+  with open('metrics.pkl', 'wb') as f:
+    pickle.dump(np_metrics, f)
 
 #
 # main code
 #
-SAVE_CHUNK_SIZE = 25
+SAVE_CHUNK_SIZE = 50
 save_limit = SAVE_CHUNK_SIZE
 
 np.set_printoptions(precision = 3)
-good_metrics = []
-bad_metrics = []
+metrics = []
 
 # setup zmq client
 context = zmq.Context()
@@ -105,7 +102,7 @@ socket = context.socket(zmq.REQ)
 socket.connect("tcp://127.0.0.1:5557")
 
 repo = Repo('data/atom')
-words_to_search = ['bug', 'fix', 'refactor']
+words_to_search = ['bug', 'fix', 'refactor', 'error', 'fail']
 
 commits = list(repo.iter_commits('master', reverse=True))
 prev_commit = commits[0]
@@ -166,10 +163,7 @@ for commit in commits[1:]:
               if "seen" in functions_a[ind_a] or "seen" in functions_b[ind_b]:
                 continue
 
-              good_metrics, bad_metrics = check_and_add_functions_metrics(good_metrics,
-                                                                          bad_metrics,
-                                                                          f_metrics_a,
-                                                                          f_metrics_b)
+              metrics = check_and_add_functions_metrics(metrics, f_metrics_a, f_metrics_b)
               functions_a[ind_a]["seen"] = True
               functions_b[ind_b]["seen"] = True
 
@@ -180,9 +174,9 @@ for commit in commits[1:]:
 
   prev_commit = commit
 
-  if len(bad_metrics) > save_limit:
-    save_data(good_metrics, bad_metrics)
+  if len(metrics) > save_limit:
+    save_data(metrics)
     save_limit += SAVE_CHUNK_SIZE
 
-save_data(good_metrics, bad_metrics)
+save_data(metrics)
 
