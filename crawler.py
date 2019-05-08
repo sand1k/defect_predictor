@@ -38,7 +38,7 @@ def find_function_at_line(funcs_line, line_no):
   i = find_le(funcs_line, line_no)
   return i
 
-def get_function_metrics_as_np_array(f_metrics, defects_val):
+def get_function_metrics_as_np_array(f_metrics):
   'Convert function metrics from escomplex format to numpy array'
   arr = [f_metrics["cyclomatic"],
          f_metrics["halstead"]["operands"]["distinct"],
@@ -55,19 +55,20 @@ def get_function_metrics_as_np_array(f_metrics, defects_val):
          f_metrics["params"],
          f_metrics["sloc"]["logical"],
          f_metrics["sloc"]["physical"],
-         f_metrics["cyclomaticDensity"],
-         defects_val]
+         f_metrics["cyclomaticDensity"]]
   return arr
 
 def check_and_add_functions_metrics(metrics, f_metrics_a, f_metrics_b):
   name_a = f_metrics_a["name"]
-  np_metr_a = get_function_metrics_as_np_array(f_metrics_a, 1.0)
+  np_metr_a = get_function_metrics_as_np_array(f_metrics_a)
 
   name_b = f_metrics_b["name"]
-  np_metr_b = get_function_metrics_as_np_array(f_metrics_b, 0.0)
+  np_metr_b = get_function_metrics_as_np_array(f_metrics_b)
 
   if name_a == name_b and not np.array_equal(np_metr_a, np_metr_b):
+    np_metr_a.append(1.0)
     metrics.append(np_metr_a)
+    np_metr_b.append(0.0)
     metrics.append(np_metr_b)
 
     print("function a (name: %s, line: %s, sloc: %s" % (name_a,
