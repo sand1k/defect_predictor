@@ -8,6 +8,18 @@ To run data collection:
 3. Run node.js server: `node index.js`
 4. Run crawler: `python3 crawler.py`
 
+To install and run jupyter notebook:
+```
+sudo -H pip3 install --upgrade pip
+sudo -H pip3 install virtualenv
+virtualenv jupyter_env
+source jupyter_env/bin/activate
+pip install jupyter
+pip install pandas
+pip install matplotlib
+pip install sklearn
+jupyter notebook
+```
 
 To run the app in docker do the following:
 1. Install docker
