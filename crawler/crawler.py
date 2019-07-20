@@ -15,11 +15,17 @@ import os
 import shutil
 import tempfile
 
-OUTPUT_DIR = "metrics"
-REPOS = ['facebook/react',
+CACHE_REPOS = True
+OUTPUT_DIR_CACHE = "./repos_cache"
+DUMP_DIFFS = False
+OUTPUT_DIR = "out_metrics"
+OUTPUT_DIR_RAW = "out_raw_diff"
+output_dir_raw_current = ""
+REPOS = [#'facebook/react',
          'nodejs/node',
-         'jquery/jquery',
-         'atom/atom']
+         #'jquery/jquery',
+         #atom/atom'
+         ]
 
 
 def findWholeWord(w):
@@ -69,14 +75,14 @@ def check_and_add_functions_metrics(metrics, f_metrics_a, f_metrics_b):
     np_metr_b.append(0.0)
     metrics.append(np_metr_b)
 
-    print("function a (name: %s, line: %s, sloc: %s" % (name_a,
-                                                        f_metrics_a["line"],
-                                                        f_metrics_a["sloc"]["physical"]))
-    print(np_metr_a)
-    print("function b (name: %s, line: %s, sloc: %s" % (name_b,
-                                                        f_metrics_b["line"],
-                                                        f_metrics_b["sloc"]["physical"]))
-    print(np_metr_b)
+#    print("function a (name: %s, line: %s, sloc: %s" % (name_a,
+#                                                        f_metrics_a["line"],
+#                                                        f_metrics_a["sloc"]["physical"]))
+#    print(np_metr_a)
+#    print("function b (name: %s, line: %s, sloc: %s" % (name_b,
+#                                                        f_metrics_b["line"],
+#                                                        f_metrics_b["sloc"]["physical"]))
+#    print(np_metr_b)
 
   return metrics
 
@@ -88,12 +94,16 @@ def save_data(metrics, output_file_name):
   with open(os.path.join(OUTPUT_DIR, '{}_metrics.pkl'.format(output_file_name)), 'wb') as f:
     pickle.dump(np_metrics, f)
 
-def collect_repository_metrics(tmp_dir_path, repository, socket):
+def collect_repository_metrics(dir_path, repository, socket):
   print('Cloning {}'.format(repository['full_name']))
-  path = os.path.join(tmp_dir_path, repository['full_name'])
-  if os.path.exists(path):
+  path = os.path.join(dir_path, repository['full_name'])
+  if os.path.exists(path) and not CACHE_REPOS:
     shutil.rmtree(path, ignore_errors=True)
-  repo = Repo.clone_from(repository['clone_url'], path, branch=repository['default_branch'])
+
+  if os.path.exists(path):
+    repo = Repo(path)
+  else:
+    repo = Repo.clone_from(repository['clone_url'], path, branch=repository['default_branch'])
 
   #
   # main code
@@ -103,7 +113,9 @@ def collect_repository_metrics(tmp_dir_path, repository, socket):
 
   np.set_printoptions(precision = 3)
   metrics = []
-  words_to_search = ['bug', 'fix', 'refactor', 'error', 'fail']
+  words_to_search = ['bug', 'fix', 'error', 'erroneous', 'broken', 'breaks', 'fails', 'incorrect',
+                     'correcting', 'corrected', 'corections', 'fault', 'corrupt', 'improv', 'cleanup',
+                     'warning', 'issue', 'mismatch', 'CID', 'CWE', 'CVE', 'coverity', 'fatal', 'crash']
 
   commits = list(repo.iter_commits(repository['default_branch'], reverse=True))
   prev_commit = commits[0]
@@ -119,6 +131,10 @@ def collect_repository_metrics(tmp_dir_path, repository, socket):
       for diff in diff_index.iter_change_type('M'):
         if diff.a_path[-3:] == ".js":
           diffs.append(diff)
+          diff_path = diff.a_path.replace('/', '_')
+          if DUMP_DIFFS:
+            with open(os.path.join(output_dir_raw_current, '{}_{}.diff'.format(commit, diff_path)), 'w') as f:
+              print(diff, file=f)
 
     if diffs:
       print(commit_message_frist_line)
@@ -137,7 +153,7 @@ def collect_repository_metrics(tmp_dir_path, repository, socket):
         report = socket.recv()
         metrics_a = json.loads(report.decode('utf-8'))
         if "error" in metrics_a:
-          print("error: %s" % (metrics_a["error"]))
+          print("error in %s: %s" % (a_path, metrics_a["error"]))
           continue
         functions_a = metrics_a["functions"]
         funcs_line_a = [f["line"] for f in functions_a]
@@ -147,7 +163,7 @@ def collect_repository_metrics(tmp_dir_path, repository, socket):
         report = socket.recv()
         metrics_b = json.loads(report.decode('utf-8'))
         if "error" in metrics_b:
-          print("error: %s" % (metrics_b["error"]))
+          print("error in %s: %s" % (b_path, metrics_b["error"]))
           continue
         functions_b = metrics_b["functions"]
         funcs_line_b = [f["line"] for f in functions_b]
@@ -192,12 +208,19 @@ socket = context.socket(zmq.REQ)
 socket.connect("tcp://127.0.0.1:5557")
 
 # termporary dir for repository data
-tmp_dir_path = tempfile.mkdtemp()
-print('Temporary repo directory: %s' % (tmp_dir_path))
+dir_path = OUTPUT_DIR_CACHE if CACHE_REPOS else tempfile.mkdtemp()
+print('Temporary repo directory: %s' % (dir_path))
+
+if not os.path.exists(OUTPUT_DIR_RAW):
+  os.makedirs(OUTPUT_DIR_RAW)
 
 for r in REPOS:
   response = requests.get('https://api.github.com/repos/{}'.format(r)).json()
   if not response:
     print('Error accessing: %s repository' % (r))
 
-  collect_repository_metrics(tmp_dir_path, response, socket)
+  output_dir_raw_current = os.path.join(OUTPUT_DIR_RAW, response['full_name'].replace('/', '_'))
+  if not os.path.exists(output_dir_raw_current):
+    os.makedirs(output_dir_raw_current)
+
+  collect_repository_metrics(dir_path, response, socket)
