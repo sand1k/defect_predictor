@@ -39,7 +39,7 @@ else if (FILE_MODE) {
     console.log('Error reading file:');
     console.log(err);
   }
-  console.log(analyze(contents));
+  console.log(analyze(contents, false));
 }
 
 function runserver()
@@ -56,19 +56,25 @@ function runserver()
     //console.log('Received code:');
     //console.log(js_code);
     //console.log('');
-    sock.send(JSON.stringify(analyze(js_code)));
+    sock.send(JSON.stringify(analyze(js_code, DUMP_PARSE_ERRORS)));
   });
 }
 
-function analyze(js_code)
+function analyze(js_code, dump_parse_errors)
 {
   res = {};
   try {
-    res = escomplex.analyse(js_code, null, { ecmaVersion: 8, loc: true, sourceType: 'module' });
+    res = escomplex.analyse(js_code, null, { ecmaVersion: 8, loc: true,
+                                             sourceType: 'module',
+                                             allowImportExportEverywhere: true,
+                                             allowReturnOutsideFunction: true,
+                                             ecmaFeatures: {
+                                               // enable implied strict mode (if ecmaVersion >= 5)
+                                               impliedStrict: false
+                                             }});
   } catch (err) {
-    res.error = err.message;
-    console.log(err.message);
-    if (DUMP_PARSE_ERRORS) {
+    res.error = err.message + " at (" + err.lineNumber + ", " + err.column + ")";
+    if (dump_parse_errors) {
       filename = path.join(DUMP_DIR, 'dump_' + DUMP_NUM++ + ".js");
       fs.writeFileSync(filename, js_code);
     }

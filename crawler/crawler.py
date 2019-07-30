@@ -137,7 +137,7 @@ def collect_repository_metrics(dir_path, repository, socket):
               print(diff, file=f)
 
     if diffs:
-      print(commit_message_frist_line)
+      print("# %s %s" %(commit, commit_message_frist_line))
       for d in diffs:
         a_path = "--- " + d.a_rawpath.decode('utf-8')
         b_path = "+++ " + d.b_rawpath.decode('utf-8')
@@ -153,7 +153,7 @@ def collect_repository_metrics(dir_path, repository, socket):
         report = socket.recv()
         metrics_a = json.loads(report.decode('utf-8'))
         if "error" in metrics_a:
-          print("error in %s: %s" % (a_path, metrics_a["error"]))
+          print("error in %s %s: %s" % (commit, a_path, metrics_a["error"]))
           continue
         functions_a = metrics_a["functions"]
         funcs_line_a = [f["line"] for f in functions_a]
@@ -163,7 +163,7 @@ def collect_repository_metrics(dir_path, repository, socket):
         report = socket.recv()
         metrics_b = json.loads(report.decode('utf-8'))
         if "error" in metrics_b:
-          print("error in %s: %s" % (b_path, metrics_b["error"]))
+          print("error in %s %s: %s" % (commit, b_path, metrics_b["error"]))
           continue
         functions_b = metrics_b["functions"]
         funcs_line_b = [f["line"] for f in functions_b]
@@ -190,7 +190,7 @@ def collect_repository_metrics(dir_path, repository, socket):
           except ValueError:
             continue
 
-        print("")
+#print("")
 
     prev_commit = commit
 
